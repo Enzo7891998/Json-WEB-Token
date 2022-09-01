@@ -1,87 +1,83 @@
-
-const express = require('express'); //iniciar servidor
-const app = express(); // iniciar servidor
+// Requerimiento de Modulos
+const express = require ('express');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const app = express();
+app.use(express.json())
+app.use(express.urlencoded({extended:false}))
 
-app.use(express.urlencoded({extended: false}));
-app.use(express.json());
+//req: peticion
+//res: respuesta
+//res.json: respuesta en formato json
 
-app.get('/login', (req, res) => {
-    res.send(`<html>
-        <head>
-            <tittle>Login</tittle>
-        </head>
-        <body>
-            <form method="POST"action="/auth">
-                Nombre de usuario: <input type ="test" name="text"><br/>
-                Contraseña: <input type = "password" name ="password"></br>
-                <input type="submit" value="Iniciar sesión" />
-            </form>
-        </body>
-    </html>`
-        
-    )
-
-app.post('/auth', (req, res) =>{
-    const {username, password} = req.body;
-
-    //se deberia consultar a la base de datos y validar que existen
-    //tanto username como password
-    const user = {username: username};
-
-    const accessToken = generateAccessToken(user);
-
-    res.header('authorization', accessToken).json({
-        message: 'Usuario autenticado',
-        token: accessToken
-
-    });
-}
-)
-});
-app.get('/api', validateToken, (req, res) => {
-    
+//ruta inicial
+app.get('/', ( req, res) => {
     res.json({
-        username: req.user,
-        tuits: [
-            {
-                id: 0,
-                text: 'Este es mi primer tuit',
-                username: 'vidamrr'
-            },
-            {
-
-                id: 0,
-                text: 'El mejor lenguaje es HTML',
-                username: 'patito_feliz'
-            }
-        ]
+        text: 'la api funciona'
     });
 });
 
-app.listen(3000, () =>{ // iniciar servidor
-    console.log('servidor iniciado...');
-})
+//ruta para logears
+app.post('/api/auth' , (req, res) => {
+    
+    //objeto use
+    const usuario = {
+        user: req.body.user,
+        password: req.body.password};
+    
+    if(req.body.user  === reverse(req.body.password)){
 
-function generateAccessToken(user){
-    return jwt.sign(user, process.env.SECRET, {expiresIn: '1m'});
-}
-
-function validateToken(req, res, next){
-
-    const accessToken = req.headers['autorizacion'] || req.query.accesstoken;
-    if(!accessToken) res.send('Acceso Denegado');
-
-    jwt.verify(accessToken, process.env.SECRET, (err, user) =>{
-        if(err){
-            res.send('Acceso Denegado, token expirado o incorrecto' );
-        }else{
-            req.user = user;
-            next();
+        const claim = {
+            user_id: 1234,
+            name: req.body.user
         }
-    });
-   
 
+        const token = jwt.sign({claim}, 'my_secret_key',(err, token) =>{
+            //generacion del token
+    //sign: recibe el objeto del usuario
+    //my_secret_token: le permite al jwt cifrar descifrar el codigo
+    //
+            res.json({
+                token
+            });
+        });
+
+      
+    }
+
+
+});
+
+
+app.post('/api/protected',verifyToken, (req, res) =>{
+  jwt.verify(req.token, 'my_secret_key',(err, data) => {
+    if(err){
+        res.sendStatus(403);
+    } else {
+        res.json({
+            text: 'protected',
+            data: data
+        })
+    }
+  });
+});
+
+//Asegura que el token este creado
+function verifyToken(req, res, next){
+    const bearerHeader = req.headers['authorization']
+    if(typeof bearerHeader !== 'undefined'){
+       const bearerToken = bearerHeader.split(" ")[1]
+       req.token = bearerToken
+       next()
+    }else{
+        res.sendStatus(403)
+    }
 }
 
+function reverse(s){
+    return s.split("").reverse().join("")
+}
+
+//inicio de servidor
+app.listen(3000, () => {
+    console.log('Server iniciado...');
+});
